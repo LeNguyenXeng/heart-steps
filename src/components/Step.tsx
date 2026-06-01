@@ -1,5 +1,6 @@
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { Calendar } from "primereact/calendar";
+import { Dropdown } from "primereact/dropdown";
 import { Steps } from "primereact/steps";
 import type { MenuItem } from "primereact/menuitem";
 
@@ -17,6 +18,26 @@ const TIME_OPTIONS = [
   "13:00", "14:00", "15:00", "16:00", "17:00", "18:00",
   "19:00", "20:00", "21:00", "22:00",
 ];
+
+const TIME_OPTION_ITEMS = TIME_OPTIONS.map((value) => {
+  const hour = Number.parseInt(value.slice(0, 2), 10);
+  const hour12 = hour % 12 || 12;
+  const meridiem = hour < 12 ? "AM" : "PM";
+  let period = "Night";
+
+  if (hour < 12) {
+    period = "Morning";
+  } else if (hour < 17) {
+    period = "Afternoon";
+  } else if (hour < 20) {
+    period = "Evening";
+  }
+
+  return {
+    label: `${value} (${hour12}:00 ${meridiem} - ${period})`,
+    value,
+  };
+});
 
 const ACTIVITY_OPTIONS = [
   { label: "Cafe Hangout", emoji: "☕" },
@@ -236,19 +257,15 @@ export default function StepComponent() {
               <label htmlFor="time" className="field-label">
                 Time
               </label>
-              <select
+              <Dropdown
                 id="time"
-                className="field-input field-select"
                 value={time}
-                onChange={(e) => setTime(e.target.value)}
-              >
-                <option value="">-- Select a time --</option>
-                {TIME_OPTIONS.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+                onChange={(e) => setTime(typeof e.value === "string" ? e.value : "")}
+                options={TIME_OPTION_ITEMS}
+                placeholder="Select a time"
+                className="field-dropdown"
+                panelClassName="field-dropdown-panel"
+              />
             </div>
             <button
               type="button"
