@@ -5,11 +5,25 @@ import type { MenuItem } from "primereact/menuitem";
 
 type StoredSession = {
   activeIndex: number;
-  dateTime: string | null;
+  date: string | null;
+  time: string;
   activity: string;
 };
 
-const STORAGE_KEY = "apology-step-session-v1";
+const STORAGE_KEY = "apology-step-session-v2";
+
+const TIME_OPTIONS = [
+  "07:00", "08:00", "09:00", "10:00", "11:00", "12:00",
+  "13:00", "14:00", "15:00", "16:00", "17:00", "18:00",
+  "19:00", "20:00", "21:00", "22:00",
+];
+
+const ACTIVITY_OPTIONS = [
+  { label: "Cafe Hangout", emoji: "☕" },
+  { label: "Movie Time", emoji: "🎬" },
+  { label: "Gaming", emoji: "🎮" },
+  { label: "Dining Out", emoji: "🍜" },
+];
 
 const readStoredSession = (): StoredSession | null => {
   if (typeof globalThis === "undefined") {
@@ -25,12 +39,13 @@ const readStoredSession = (): StoredSession | null => {
     const parsed = JSON.parse(raw) as Partial<StoredSession>;
     const safeActiveIndex =
       typeof parsed.activeIndex === "number" && Number.isInteger(parsed.activeIndex)
-      ? Math.min(3, Math.max(0, parsed.activeIndex))
+      ? Math.min(4, Math.max(0, parsed.activeIndex))
       : 0;
 
     return {
       activeIndex: safeActiveIndex,
-      dateTime: typeof parsed.dateTime === "string" ? parsed.dateTime : null,
+      date: typeof parsed.date === "string" ? parsed.date : null,
+      time: typeof parsed.time === "string" ? parsed.time : "",
       activity: typeof parsed.activity === "string" ? parsed.activity : "",
     };
   } catch {
@@ -41,21 +56,22 @@ const readStoredSession = (): StoredSession | null => {
 export default function StepComponent() {
   const [initialSession] = useState<StoredSession | null>(() => readStoredSession());
   const [activeIndex, setActiveIndex] = useState(initialSession?.activeIndex ?? 0);
-  const [dateTime, setDateTime] = useState<Date | null>(() => {
-    if (!initialSession?.dateTime) {
+  const [date, setDate] = useState<Date | null>(() => {
+    if (!initialSession?.date) {
       return null;
     }
-
-    const parsedDate = new Date(initialSession.dateTime);
+    const parsedDate = new Date(initialSession.date);
     return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
   });
+  const [time, setTime] = useState(initialSession?.time ?? "");
   const [activity, setActivity] = useState(initialSession?.activity ?? "");
   const [noOffset, setNoOffset] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     const payload: StoredSession = {
       activeIndex,
-      dateTime: dateTime ? dateTime.toISOString() : null,
+      date: date ? date.toISOString() : null,
+      time,
       activity,
     };
 
@@ -64,7 +80,7 @@ export default function StepComponent() {
     } catch {
       // Ignore storage write errors (private mode / quota exceeded).
     }
-  }, [activeIndex, dateTime, activity]);
+  }, [activeIndex, date, time, activity]);
 
   const getRandomOffset = (xRange: number, yRange: number) => {
     const randomX = Math.floor(Math.random() * (xRange * 2 + 1)) - xRange;
@@ -127,18 +143,23 @@ export default function StepComponent() {
       icon: "pi pi-heart-fill",
       template: (item: MenuItem) => itemRenderer(item, 3),
     },
+    {
+      label: "Step 5",
+      icon: "pi pi-heart-fill",
+      template: (item: MenuItem) => itemRenderer(item, 4),
+    },
   ];
 
-  const formattedDateTime = dateTime
-    ? dateTime.toLocaleString("en-US", {
+  const formattedDate = date
+    ? date.toLocaleDateString("en-US", {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
       })
     : "Not selected";
-  const formattedActivity = activity.trim() || "Not entered";
+  const timeSuffix = time ? ` at ${time}` : "";
+  const formattedDateTime = date ? formattedDate + timeSuffix : "Not selected";
+  const formattedActivity = activity || "Not entered";
 
   const renderStepContent = () => {
     if (activeIndex === 0) {
@@ -192,48 +213,77 @@ export default function StepComponent() {
       return (
         <section className="step-panel fade-in">
           <p className="step-kicker">Step 3</p>
-          <h2 className="step-title">Choose a date and activity</h2>
+          <h2 className="step-title">Pick a date</h2>
           <div className="form-grid">
             <div className="field-wrap">
-              <label htmlFor="dateTime" className="field-label">
-                Date and time
+              <label htmlFor="date" className="field-label">
+                Date
               </label>
               <Calendar
-                id="dateTime"
-                value={dateTime}
+                id="date"
+                value={date}
                 onChange={(e) =>
-                  setDateTime(e.value instanceof Date ? e.value : null)
+                  setDate(e.value instanceof Date ? e.value : null)
                 }
                 showIcon
-                showTime
-                hourFormat="24"
-                placeholder="Select date and time"
+                placeholder="Select a date"
                 className="field-calendar"
                 inputClassName="field-input"
                 hideOnDateTimeSelect
               />
             </div>
             <div className="field-wrap">
-              <label htmlFor="activity" className="field-label">
-                What would you like to do?
+              <label htmlFor="time" className="field-label">
+                Time
               </label>
-              <input
-                id="activity"
-                type="text"
-                className="field-input"
-                placeholder="Example: watch a movie"
-                value={activity}
-                onChange={(e) => setActivity(e.target.value)}
-              />
+              <select
+                id="time"
+                className="field-input field-select"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+              >
+                <option value="">-- Select a time --</option>
+                {TIME_OPTIONS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
             </div>
             <button
               type="button"
               className="cute-btn cute-btn-primary"
               onClick={() => setActiveIndex(3)}
-              disabled={dateTime === null || !activity.trim()}
+              disabled={date === null || !time}
             >
-              OKAY
+              Next
             </button>
+          </div>
+        </section>
+      );
+    }
+
+    if (activeIndex === 3) {
+      return (
+        <section className="step-panel fade-in">
+          <p className="step-kicker">Step 4</p>
+          <h2 className="step-title">What would you like to do?</h2>
+          <p className="step-copy">Pick an activity you'd enjoy.</p>
+          <div className="activity-grid">
+            {ACTIVITY_OPTIONS.map((opt) => (
+              <button
+                key={opt.label}
+                type="button"
+                className={`activity-card${activity === opt.label ? " activity-card-active" : ""}`}
+                onClick={() => {
+                  setActivity(opt.label);
+                  setActiveIndex(4);
+                }}
+              >
+                <span className="activity-emoji">{opt.emoji}</span>
+                <span className="activity-label">{opt.label}</span>
+              </button>
+            ))}
           </div>
         </section>
       );
@@ -241,7 +291,7 @@ export default function StepComponent() {
 
     return (
       <section className="step-panel fade-in">
-        <p className="step-kicker">Step 4</p>
+        <p className="step-kicker">Step 5</p>
         <h2 className="step-title">Our plan</h2>
         <p className="summary-line">
           <strong>Time:</strong> {formattedDateTime}
